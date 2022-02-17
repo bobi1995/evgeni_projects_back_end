@@ -8,6 +8,7 @@ const userRoute = require("./routes/users");
 const loginRoute = require("./routes/login");
 const projectRoute = require("./routes/project");
 const budgetRowRoute = require("./routes/budgetRow");
+const userCostRoute = require("./routes/userCost");
 
 const url = "mongodb://localhost:27017/project-system";
 const app = express();
@@ -35,6 +36,7 @@ app.use("/user", userRoute);
 app.use("/login", loginRoute);
 app.use("/project", projectRoute);
 app.use("/budget", budgetRowRoute);
+app.use("/cost/", userCostRoute);
 //routes
 app.get("/", (req, res) => {
   res.send("Working");

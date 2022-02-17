@@ -2,9 +2,11 @@ const express = require("express");
 const ProjectModel = require("../mongoModels/project");
 const UserModel = require("../mongoModels/user");
 const BudgetRowsModel = require("../mongoModels/rowsOfBudget");
+const ResultModel = require("../mongoModels/result");
 const router = express.Router();
 const fs = require("fs");
 const localAddress = require("../globals/localAddess");
+const moment = require("moment");
 
 //MULTER DECLARATIONS OFFER
 const uploadOffer = require("./multers/offer");
@@ -304,43 +306,12 @@ router.put("/", async (req, res) => {
   }
   const project = await ProjectModel.findById(req.body.projectId);
   if (!project) {
-    return res.send("Project could not be found");
+    return res.status(201).send("Project could not be found");
   }
   if (project.status === 2) {
-    return res.send("Project is closed and cannot be edited anymore");
-  }
-
-  let newOfferPath;
-  let newSchedulePath;
-  let newSimulationPath;
-  let newAssignerPath;
-  let newSubcontractorPath;
-  let newPicturesPath;
-
-  if (req.body.offerPath) {
-    newOfferPath = project.offer.concat(req.body.offerPath);
-  }
-
-  if (req.body.schedulePath) {
-    newSchedulePath = project.schedule.concat(req.body.schedulePath);
-  }
-
-  if (req.body.simulationPath) {
-    newSimulationPath = project.simulation.concat(req.body.simulationPath);
-  }
-
-  if (req.body.assignerPath) {
-    newAssignerPath = project.contractAssigner.concat(req.body.assignerPath);
-  }
-
-  if (req.body.subcontractorPath) {
-    newSubcontractorPath = project.contractSubcontractor.concat(
-      req.body.subcontractorPath
-    );
-  }
-
-  if (req.body.picturesPath) {
-    newPicturesPath = project.pictures.concat(req.body.picturesPath);
+    return res
+      .status(201)
+      .send("Project is closed and cannot be edited anymore");
   }
 
   const updatedProject = await ProjectModel.findOneAndUpdate(
@@ -350,22 +321,17 @@ router.put("/", async (req, res) => {
     {
       $set: {
         power: req.body.power,
-        offer: newOfferPath,
-        schedule: newSchedulePath,
-        simulation: newSimulationPath,
-        contractAssigner: newAssignerPath,
-        contractSubcontractor: newSubcontractorPath,
-        pictures: newPicturesPath,
         targetDate: req.body.targetDate,
         totalProfit: req.body.totalProfit,
         contractSum: req.body.contractSum,
         type: req.body.type,
         name: req.body.name,
+        location: req.body.location,
       },
     }
   )
-    .then((respond) => res.send(updatedProject))
-    .catch((err) => res.send(err));
+    .then((respond) => res.status(200).send("Updated"))
+    .catch((err) => res.status(201).send(err));
 });
 
 //delete individual project
@@ -400,6 +366,59 @@ router.delete("/:projectId", async (req, res) => {
   });
 
   return res.send(project);
+});
+
+//close project
+router.post("/close", async (req, res) => {
+  const project = await ProjectModel.findById(req.body.projectId);
+  if (!project) {
+    return res.status(201).send("Project could not be found");
+  }
+  if (project.status === 2) {
+    return res.status(201).send("Project already closed");
+  }
+  const user = await UserModel.findById(project.owner);
+  if (!user) {
+    return res.status(201).send("User not found");
+  }
+  try {
+    const updatedProject = await ProjectModel.findOneAndUpdate(
+      {
+        _id: project._id,
+      },
+      {
+        $set: {
+          status: 2,
+          endDate: new Date(),
+        },
+      }
+    );
+
+    const days = moment
+      .duration(
+        Math.abs(new Date(project.endDate) - new Date(project.startDate))
+      )
+      .asDays();
+
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+
+    console.log(date);
+    console.log(typeof date);
+    const result = new ResultModel({
+      totalProfit: project.totalProfit,
+      period: days,
+      project: project._id,
+      endDate: date,
+    });
+    await result.save();
+    user.results.push(result);
+
+    await user.save();
+    return res.status(200).send("Closed");
+  } catch (error) {
+    return res.status(201).send("Unsuccessfull closing");
+  }
 });
 
 module.exports = router;
