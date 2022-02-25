@@ -1,5 +1,5 @@
 const multer = require("multer");
-const localAddress = require("../../globals/localAddess");
+const localAddress = require("../../../globals/localAddess");
 const fs = require("fs");
 
 const storage = multer.diskStorage({
@@ -8,7 +8,7 @@ const storage = multer.diskStorage({
     if (!projectId) {
       return "Not found";
     }
-    const path = `${localAddress}/${projectId}/simulation`;
+    const path = `${localAddress}/${projectId}/permission`;
     if (!fs.existsSync(path)) {
       fs.mkdirSync(path);
     }
@@ -18,6 +18,6 @@ const storage = multer.diskStorage({
     cb(null, `${file.originalname}`);
   },
 });
-const upload = multer({ storage: storage });
+const permission = multer({ storage: storage });
 
-module.exports = upload;
+module.exports = permission;

@@ -1,5 +1,5 @@
 const multer = require("multer");
-const localAddress = require("../../globals/localAddess");
+const localAddress = require("../../../globals/localAddess");
 const fs = require("fs");
 
 const storage = multer.diskStorage({
@@ -8,7 +8,7 @@ const storage = multer.diskStorage({
     if (!projectId) {
       return "Not found";
     }
-    const path = `${localAddress}/${projectId}/subcontractor`;
+    const path = `${localAddress}/${projectId}/simulation`;
     if (!fs.existsSync(path)) {
       fs.mkdirSync(path);
     }

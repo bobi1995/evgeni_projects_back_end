@@ -6,6 +6,82 @@ const router = express.Router();
 const fs = require("fs");
 const localAddress = require("../globals/localAddess");
 
+//MULTERS
+const uploadOffer = require("./multers/rowsOfBudget/offer");
+const uploadInvoice = require("./multers/rowsOfBudget/invoice");
+
+//upload invoice
+router.post(
+  "/invoice",
+  uploadInvoice.single("invoice"),
+  async (req, res, next) => {
+    console.log("here");
+    const file = req.file;
+    const rowOfBudget = await BudgetRowsModel.findById(req.body.rowId);
+    if (!rowOfBudget) {
+      return res.status(201).send("Row not found");
+    }
+    if (!file) {
+      return res.status(201).send("Please upload a file");
+    }
+    rowOfBudget.invoice.push(file.originalname);
+    await rowOfBudget.save();
+    return res.status(200).send("Uploaded");
+  }
+);
+
+//delete invoice
+router.delete("/invoice", async (req, res) => {
+  const rowOfBudget = await BudgetRowsModel.findById(req.body.rowId);
+  if (!rowOfBudget) {
+    return res.status(201).send("Row not found");
+  }
+
+  const filePath = `${localAddress}/${req.body.projectId}/budgetRows/${req.body.rowId}/invoice/${req.body.fileName}`;
+  fs.unlinkSync(filePath);
+  const index = rowOfBudget.invoice.indexOf(req.body.fileName);
+  if (index !== -1) {
+    rowOfBudget.invoice.splice(index, 1);
+  }
+
+  await rowOfBudget.save();
+  return res.status(200).send("Deleted");
+});
+
+//upload offer
+router.post("/offer", uploadOffer.single("offer"), async (req, res, next) => {
+  console.log("here");
+  const file = req.file;
+  const rowOfBudget = await BudgetRowsModel.findById(req.body.rowId);
+  if (!rowOfBudget) {
+    return res.status(201).send("Row not found");
+  }
+  if (!file) {
+    return res.status(201).send("Please upload a file");
+  }
+  rowOfBudget.offer.push(file.originalname);
+  await rowOfBudget.save();
+  return res.status(200).send("Uploaded");
+});
+
+//delete offer
+router.delete("/offer", async (req, res) => {
+  const rowOfBudget = await BudgetRowsModel.findById(req.body.rowId);
+  if (!rowOfBudget) {
+    return res.status(201).send("Row not found");
+  }
+
+  const filePath = `${localAddress}/${req.body.projectId}/budgetRows/${req.body.rowId}/offer/${req.body.fileName}`;
+  fs.unlinkSync(filePath);
+  const index = rowOfBudget.offer.indexOf(req.body.fileName);
+  if (index !== -1) {
+    rowOfBudget.offer.splice(index, 1);
+  }
+
+  await rowOfBudget.save();
+  return res.status(200).send("Deleted");
+});
+
 //add row
 router.post("/", async (req, res) => {
   if (!req.isAuth) {
@@ -40,6 +116,9 @@ router.post("/", async (req, res) => {
     priceWp: (req.body.agreedPrice * req.body.quantity) / project.power,
   });
 
+  project.totalProfit =
+    project.totalProfit - budgetRow.agreedPrice * budgetRow.quantity;
+  await project.save();
   return budgetRow
     .save()
     .then(() => {
@@ -52,7 +131,7 @@ router.post("/", async (req, res) => {
       foundProject.budget.push(budgetRow);
       foundProject.save();
     })
-    .then(() => res.send(budgetRow))
+    .then(() => res.status(200).send("Updated"))
     .catch((err) => {
       return res.status(401).send(err);
     });
@@ -105,6 +184,7 @@ router.put("/", async (req, res) => {
         (req.body.quantity ? req.body.quantity : budgetRow.quantity);
     }
   }
+
   try {
     await BudgetRowsModel.findOneAndUpdate(
       {
@@ -125,6 +205,21 @@ router.put("/", async (req, res) => {
         },
       }
     );
+
+    const allRows = await BudgetRowsModel.find({
+      project: project._id,
+    });
+
+    if (allRows.length > 0) {
+      let totalBudget = 0;
+      allRows.map(
+        (el) => (totalBudget = totalBudget + el.agreedPrice * el.quantity)
+      );
+
+      project.totalProfit = project.contractSum - totalBudget;
+      await project.save();
+    }
+
     return res.status(200).send("Updated");
   } catch (error) {
     return res.status(400).send(error);
@@ -154,7 +249,21 @@ router.delete("/", async (req, res) => {
   await BudgetRowsModel.deleteOne({
     _id: req.body.budgetRowId,
   });
-  return budgetRow;
+
+  const allRows = await BudgetRowsModel.find({
+    project: req.body.projectId,
+  });
+
+  if (allRows.length > 0) {
+    let totalBudget = 0;
+    allRows.map(
+      (el) => (totalBudget = totalBudget + el.agreedPrice * el.quantity)
+    );
+
+    project.totalProfit = project.contractSum - totalBudget;
+    await project.save();
+  }
+  return res.status(200).send("Deleted");
 });
 
 module.exports = router;

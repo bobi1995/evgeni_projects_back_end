@@ -1,14 +1,15 @@
 const multer = require("multer");
-const localAddress = require("../../globals/localAddess");
+const localAddress = require("../../../globals/localAddess");
 const fs = require("fs");
 
-const storage = multer.diskStorage({
+//MULTER DECLARATIONS OFFER
+const storageOffer = multer.diskStorage({
   destination: (req, file, callback) => {
     const { projectId } = req.body;
     if (!projectId) {
       return "Not found";
     }
-    const path = `${localAddress}/${projectId}/pictures`;
+    const path = `${localAddress}/${projectId}/offer`;
     if (!fs.existsSync(path)) {
       fs.mkdirSync(path);
     }
@@ -18,6 +19,6 @@ const storage = multer.diskStorage({
     cb(null, `${file.originalname}`);
   },
 });
-const upload = multer({ storage: storage });
+const uploadOffer = multer({ storage: storageOffer });
 
-module.exports = upload;
+module.exports = uploadOffer;

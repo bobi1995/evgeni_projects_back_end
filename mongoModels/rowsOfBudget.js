@@ -7,7 +7,7 @@ const userSchema = new Schema({
   singlePrice: { type: Number },
   agreedPrice: { type: Number },
   totalPrice: { type: Number },
-  offer: { type: String },
+  offer: [{ type: String }],
   provider: { type: String },
   invoice: [{ type: String }],
   priceWp: { type: Number },

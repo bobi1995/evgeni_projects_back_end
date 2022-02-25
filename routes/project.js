@@ -9,12 +9,126 @@ const localAddress = require("../globals/localAddess");
 const moment = require("moment");
 
 //MULTER DECLARATIONS OFFER
-const uploadOffer = require("./multers/offer");
-const uploadSchedule = require("./multers/schedule");
-const uploadSimulation = require("./multers/simulation");
-const uploadContract = require("./multers/contract");
-const uploadSubcontractor = require("./multers/subcontractor");
-const uploadPictures = require("./multers/pictures");
+const uploadOffer = require("./multers/project/offer");
+const uploadSchedule = require("./multers/project/schedule");
+const uploadSimulation = require("./multers/project/simulation");
+const uploadContract = require("./multers/project/contract");
+const uploadSubcontractor = require("./multers/project/subcontractor");
+const uploadPictures = require("./multers/project/pictures");
+const uploadStandpoint = require("./multers/project/standpoint");
+const uploadPermission = require("./multers/project/permission");
+const uploadProjectDocs = require("./multers/project/projectDocs");
+
+//upload standpoint
+router.post(
+  "/standpoint",
+  uploadStandpoint.single("standpoint"),
+  async (req, res, next) => {
+    const file = req.file;
+    const project = await ProjectModel.findById(req.body.projectId);
+    if (!project) {
+      return res.send("Project not found");
+    }
+    if (!file) {
+      return res.send("Please upload a file");
+    }
+    project.standpoint.push(file.originalname);
+    await project.save();
+    return res.send(file.originalname);
+  }
+);
+
+//delete standpoint
+router.delete("/standpoint", async (req, res) => {
+  const project = await ProjectModel.findById(req.body.projectId);
+  if (!project) {
+    return res.send("Project not found");
+  }
+  const filePath = `${localAddress}/${req.body.projectId}/standpoint/${req.body.fileName}`;
+  fs.unlinkSync(filePath);
+  const index = project.standpoint.indexOf(req.body.fileName);
+  if (index !== -1) {
+    project.standpoint.splice(index, 1);
+  }
+
+  await project.save();
+  res.status(200);
+  return res.send("Deleted");
+});
+
+//upload permission
+router.post(
+  "/permission",
+  uploadPermission.single("permission"),
+  async (req, res, next) => {
+    const file = req.file;
+    const project = await ProjectModel.findById(req.body.projectId);
+    if (!project) {
+      return res.status(200).send("Project not found");
+    }
+    if (!file) {
+      return res.status(200).send("Please upload a file");
+    }
+    project.permission.push(file.originalname);
+    await project.save();
+    return res.send(file.originalname);
+  }
+);
+
+//delete permission
+router.delete("/permission", async (req, res) => {
+  const project = await ProjectModel.findById(req.body.projectId);
+  if (!project) {
+    return res.send("Project not found");
+  }
+  const filePath = `${localAddress}/${req.body.projectId}/permission/${req.body.fileName}`;
+  fs.unlinkSync(filePath);
+  const index = project.permission.indexOf(req.body.fileName);
+  if (index !== -1) {
+    project.permission.splice(index, 1);
+  }
+
+  await project.save();
+  res.status(200);
+  return res.send("Deleted");
+});
+
+//upload projectDocs
+router.post(
+  "/projectDocs",
+  uploadProjectDocs.single("projectDocs"),
+  async (req, res, next) => {
+    const file = req.file;
+    const project = await ProjectModel.findById(req.body.projectId);
+    if (!project) {
+      return res.send("Project not found");
+    }
+    if (!file) {
+      return res.send("Please upload a file");
+    }
+    project.projectDocs.push(file.originalname);
+    await project.save();
+    return res.send(file.originalname);
+  }
+);
+
+//delete projectDocs
+router.delete("/projectDocs", async (req, res) => {
+  const project = await ProjectModel.findById(req.body.projectId);
+  if (!project) {
+    return res.send("Project not found");
+  }
+  const filePath = `${localAddress}/${req.body.projectId}/projectDocs/${req.body.fileName}`;
+  fs.unlinkSync(filePath);
+  const index = project.projectDocs.indexOf(req.body.fileName);
+  if (index !== -1) {
+    project.projectDocs.splice(index, 1);
+  }
+
+  await project.save();
+  res.status(200);
+  return res.send("Deleted");
+});
 
 //upload offer
 router.post("/offer", uploadOffer.single("offer"), async (req, res, next) => {
@@ -235,6 +349,18 @@ router.delete("/pictures", async (req, res) => {
   return res.send("Deleted");
 });
 
+//get all projects
+router.get("/", async (req, res) => {
+  if (!req.isAuth) {
+    return res.status(401).send("Нямаш права за тази сесия");
+  }
+  const projects = await ProjectModel.find().populate("owner");
+  if (!projects) {
+    return res.status(201).send("Project does not exist");
+  }
+  return res.status(200).send(projects);
+});
+
 //get individual project
 router.get("/:projectId", async (req, res) => {
   if (!req.isAuth) {
@@ -300,7 +426,6 @@ router.post("/", async (req, res) => {
 
 //edit project
 router.put("/", async (req, res) => {
-  console.log(req.body);
   if (!req.isAuth) {
     return res.status(401).send("Нямаш права за тази сесия");
   }
@@ -335,22 +460,34 @@ router.put("/", async (req, res) => {
 });
 
 //delete individual project
-router.delete("/:projectId", async (req, res) => {
+router.delete("/", async (req, res) => {
   if (!req.isAuth) {
     return res.status(401).send("Нямаш права за тази сесия");
   }
-  const project = await ProjectModel.findById(req.params.projectId);
+  const project = await ProjectModel.findById(req.body.projectId);
   if (!project) {
-    return res.send("Project could not be found");
+    return res.status(201).send("Project could not be found");
   }
   const owner = await UserModel.findById(project.owner);
   if (!owner) {
-    return res.send("Owner could not be found");
+    return res.status(201).send("Owner could not be found");
+  }
+  const result = await ResultModel.find({ project: project._id });
+
+  if (result[0]) {
+    await ResultModel.deleteOne({
+      _id: result[0]._id,
+    });
+
+    await UserModel.updateOne(
+      { _id: owner._id },
+      { $pull: { results: { $in: result[0]._id } } }
+    );
   }
 
   await UserModel.updateOne(
     { _id: owner._id },
-    { $pull: { projects: { $in: req.params.projectId } } }
+    { $pull: { projects: { $in: req.body.projectId } } }
   );
 
   if (project.budget.length > 0) {
@@ -362,10 +499,14 @@ router.delete("/:projectId", async (req, res) => {
   }
 
   await ProjectModel.deleteOne({
-    _id: req.params.projectId,
+    _id: req.body.projectId,
   });
 
-  return res.send(project);
+  const filePath = `${localAddress}/${req.body.projectId}/`;
+
+  fs.rmSync(filePath, { recursive: true, force: true });
+
+  return res.status(200).send("deleted");
 });
 
 //close project
@@ -395,21 +536,28 @@ router.post("/close", async (req, res) => {
     );
 
     const days = moment
-      .duration(
-        Math.abs(new Date(project.endDate) - new Date(project.startDate))
-      )
+      .duration(Math.abs(new Date() - new Date(project.startDate)))
       .asDays();
 
-    const date = new Date();
-    date.setDate(date.getDate() + days);
+    const month = Math.round(days / 30);
 
-    console.log(date);
-    console.log(typeof date);
+    const now = new Date();
+    const nextMonthFirstDay = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1
+    );
+    const startMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    nextMonthFirstDay.setMonth(nextMonthFirstDay.getMonth() + month);
+
     const result = new ResultModel({
       totalProfit: project.totalProfit,
       period: days,
       project: project._id,
-      endDate: date,
+      endDate: nextMonthFirstDay,
+      startDate: startMonth,
+      name: project.name,
     });
     await result.save();
     user.results.push(result);
