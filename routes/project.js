@@ -403,6 +403,7 @@ router.post("/", async (req, res) => {
     .save()
     .then((result) => {
       createdProject = result;
+      console.log(createdProject);
       fs.mkdirSync(
         `D:\\evgeni\\project-system\\projects\\${createdProject._id}`
       );
