@@ -103,7 +103,7 @@ router.post("/", async (req, res) => {
   const budgetRow = new BudgetRowsModel({
     position: req.body.position,
     size: req.body.size,
-    quantity: req.body.quantity,
+    quantity: req.body.quantity ? req.body.quantity : 1,
     singlePrice: req.body.singlePrice,
     totalPrice: req.body.singlePrice * req.body.quantity,
     // offerPath: req.body.offerPath,
@@ -116,9 +116,11 @@ router.post("/", async (req, res) => {
     priceWp: (req.body.agreedPrice * req.body.quantity) / project.power,
   });
 
-  project.totalProfit =
-    project.totalProfit - budgetRow.agreedPrice * budgetRow.quantity;
-  await project.save();
+  if (project.type === "3" && project.totalProfit) {
+    project.totalProfit =
+      project.totalProfit - budgetRow.agreedPrice * budgetRow.quantity;
+    await project.save();
+  }
   return budgetRow
     .save()
     .then(() => {
@@ -210,7 +212,7 @@ router.put("/", async (req, res) => {
       project: project._id,
     });
 
-    if (allRows.length > 0) {
+    if (allRows.length > 0 && project.totalProfit) {
       let totalBudget = 0;
       allRows.map(
         (el) => (totalBudget = totalBudget + el.agreedPrice * el.quantity)
@@ -254,7 +256,7 @@ router.delete("/", async (req, res) => {
     project: req.body.projectId,
   });
 
-  if (allRows.length > 0) {
+  if (allRows.length > 0 && project.totalProfit) {
     let totalBudget = 0;
     allRows.map(
       (el) => (totalBudget = totalBudget + el.agreedPrice * el.quantity)
@@ -263,6 +265,11 @@ router.delete("/", async (req, res) => {
     project.totalProfit = project.contractSum - totalBudget;
     await project.save();
   }
+
+  const filePath = `${localAddress}\\${req.body.projectId}\\budgetRows\\${req.body.budgetRowId}`;
+
+  fs.rmSync(filePath, { recursive: true, force: true });
+
   return res.status(200).send("Deleted");
 });
 
