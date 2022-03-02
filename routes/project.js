@@ -315,19 +315,19 @@ router.delete("/subcontractor", async (req, res) => {
 //upload pictures
 router.post(
   "/pictures",
-  uploadPictures.single("pictures"),
+  uploadPictures.array("pictures", 12),
   async (req, res, next) => {
-    const file = req.file;
+    const file = req.files;
     const project = await ProjectModel.findById(req.body.projectId);
     if (!project) {
-      return res.send("Project not found");
+      return res.status(201).send("Project not found");
     }
-    if (!file) {
-      return res.send("Please upload a file");
+    if (!file || file.length < 1) {
+      return res.status(201).send("Please upload a file");
     }
-    project.pictures.push(file.originalname);
+    file.map((el) => project.pictures.push(el.originalname));
     await project.save();
-    return res.send(file.originalname);
+    return res.status(200).send("Uploaded");
   }
 );
 
